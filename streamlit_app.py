@@ -1,17 +1,26 @@
 import os
 import time
-import httpx
 import streamlit as st
 import uuid
 from dotenv import load_dotenv
+from openai import OpenAI
 
 # Show title and description.
-st.title("123inkt.nl FAQ Answering chatbot")
+st.title("CS Messages translations chatbot")
 st.write(
-    "This is a chatbot that responds to 123inkt.nl FAQs. "
+    "This chatbot automatically translates messages for multilingual Customer Service. "
+)
+language = st.selectbox(
+    "Select the language translation language",
+    ("German", "Dutch", "French", "Italian", "Spanish", "Danish", "Portuguese"),
+    index=None,
+    placeholder="Select language here...",
 )
 
 load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_KEY"))
+with open("system_prompt.txt", "r") as file:
+    system_prompt = file.read()
 
 # Ask user for their OpenAI API key via `st.text_input`.
 # Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
@@ -38,18 +47,37 @@ if chat_message := st.chat_input("What is up?"):
     st.session_state.messages.append({"role": "user", "content": chat_message})
     with st.chat_message("user", avatar="👤"):
         st.markdown(chat_message)
+    if language:
+        # Generate a response using the local API.
+        response = client.chat.completions.create(
+                                                    model="gpt-4o-mini",
+                                                    messages=[
+                                                        {"role": "developer", "content": system_prompt.format(language=language)},
+                                                        {"role": "user", "content": chat_message}
+                                                    ]
+                                                    )
+        # Stream the response to the chat using `st.write_stream`, then store it in 
+        def stream_data():
+            for word in response.choices[0].message.content.split(" "):
+                yield word + " "
+                time.sleep(0.05)
 
-    # Generate a response using the local API.
-    response = httpx.post(url=os.getenv('BACKEND_URL'), json={"message": chat_message, "session_id": st.session_state.session_id, "auth_key": os.getenv('STREAMLIT_AUTH_KEY')}, timeout=None).json()
-
-    # Stream the response to the chat using `st.write_stream`, then store it in 
-    def stream_data():
-        for word in response.split(" "):
-            yield word + " "
-            time.sleep(0.05)
-
-    with st.chat_message("assistant", avatar="🤖"):
-        response = st.write_stream(stream_data())
+        with st.chat_message("assistant", avatar="🤖"):
+            response = st.write_stream(stream_data())
     
-    # Store the response in session state.
-    st.session_state.messages.append({"role": "assistant", "content": response})
+        # Store the response in session state.
+        st.session_state.messages.append({"role": "assistant", "content": response})
+    else:
+        response = "Please, select a language to translate."   
+
+        # Stream the response to the chat using `st.write_stream`, then store it in 
+        def stream_data():
+            for word in response.split(" "):
+                yield word + " "
+                time.sleep(0.05)
+        
+        with st.chat_message("assistant", avatar="🤖"):
+            response = st.write_stream(stream_data())
+    
+        # Store the response in session state.
+        st.session_state.messages.append({"role": "assistant", "content": response})

@@ -1,0 +1,2 @@
+Translate the following customer service message into {language} while maintaining a professional and friendly tone. Ensure that the translation is clear, culturally appropriate, and conveys the original intent accurately.
+Provide only the translated text without additional explanations.
